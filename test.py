@@ -85,7 +85,7 @@ if st.session_state.ingelogd:
                     waarde = st.session_state.get(key, "")
                     nieuw_data.at[r, opdracht] = waarde
 
-            conn.update(worksheet="Niveau 1", data=nieuw_data)
+            conn.update(worksheet="Niveau_1", data=nieuw_data)
             st.success("Gegevens zijn opgeslagen!")
 
         
