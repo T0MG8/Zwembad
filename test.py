@@ -23,12 +23,12 @@ if st.session_state.ingelogd:
 
     with tab1:
         conn = st.connection("gsheets", type=GSheetsConnection)
-        data_n1 = conn.read(worksheet="Niveau_1", ttl=0)
-        data_n2 = conn.read(worksheet="Niveau_2", ttl=0)
-        data_n3 = conn.read(worksheet="Niveau_3", ttl=0)
-        data_ad = conn.read(worksheet="A_Diploma", ttl=0)
-        data_bd = conn.read(worksheet="B_Diploma", ttl=0)
-        data_cd = conn.read(worksheet="C_Diploma", ttl=0)
+        data_n1 = conn.read(worksheet="niveau1", ttl=0)
+        data_n2 = conn.read(worksheet="niveau2", ttl=0)
+        data_n3 = conn.read(worksheet="niveau3", ttl=0)
+        data_ad = conn.read(worksheet="adiploma", ttl=0)
+        data_bd = conn.read(worksheet="bdiploma", ttl=0)
+        data_cd = conn.read(worksheet="cdiploma", ttl=0)
         # ── 2. Structuur uit de sheet halen ──────────────────────────────────────────
         rijlabel_kol  = data_n1.columns[0]             # eerste kolom bevat de namen
         kinderen      = data_n1[rijlabel_kol].tolist() # ['Peter', 'Sjaqelien', …]
@@ -85,7 +85,7 @@ if st.session_state.ingelogd:
                     waarde = st.session_state.get(key, "")
                     nieuw_data.at[r, opdracht] = waarde
 
-            conn.update(worksheet="Niveau_1", data=nieuw_data)
+            conn.update(worksheet="niveau1", data=nieuw_data)
             st.success("Gegevens zijn opgeslagen!")
 
         
