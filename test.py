@@ -165,8 +165,6 @@ if st.session_state.ingelogd:
                 # Sheet data inlezen
                 data = conn.read(worksheet=worksheet_naam, ttl=0)
 
-                st.markdown("---")
-
                 # Als kolom 'Naam' niet bestaat, maak aan
                 if 'Naam' not in data.columns:
                     data['Naam'] = ""
