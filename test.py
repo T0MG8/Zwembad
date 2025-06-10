@@ -18,80 +18,88 @@ if 'gebruiker' not in st.session_state:
 
 # Als ingelogd, toon tabs
 if st.session_state.ingelogd:
-    tab1, tab2, tab3 = st.tabs(['Wat kunnen', 'Aanwezigheid', 'test'])
+    tab1, tab2, tab3 = st.tabs(['Wat kunnen', 'Aanwezigheid', 'Instellingen'])
     
     with tab1:
-        data_n1 = conn.read(worksheet="niveau1", ttl=5)
-        data_n1.dropna(how="all")
-        data_n2 = conn.read(worksheet="niveau2", ttl=5)
-        data_n2.dropna(how="all")
-        data_n3 = conn.read(worksheet="niveau3", ttl=5)
-        data_n3.dropna(how="all")
-        data_ad = conn.read(worksheet="adiploma", ttl=5)
-        data_ad.dropna(how="all")
-        data_bd = conn.read(worksheet="bdiploma", ttl=5)
-        data_bd.dropna(how="all")
-        data_cd = conn.read(worksheet="cdiploma", ttl=5)
-        data_cd.dropna(how="all")
+        # Dropdown om een niveau of diploma te kiezen
+        sheet_keuze = st.selectbox(
+            "Selecteer een niveau of diploma",
+            options=["Niveau 1", "Niveau 2", "Niveau 3", "A Diploma", "B Diploma", "C Diploma"]
+        )
 
-        # ── 2. Structuur uit de sheet halen ──────────────────────────────────────────
-        rijlabel_kol  = data_n1.columns[0]             # eerste kolom bevat de namen
-        kinderen      = data_n1[rijlabel_kol].tolist() # ['Peter', 'Sjaqelien', …]
-        kolom_n1      = data_n1.columns[1:].tolist()   # opdrachten
+        st.markdown("---")
 
-        # Alle symbolen die al in de sheet voorkomen (plus lege waarde) worden opties
-        symbool_set   = (
-            data_n1.drop(columns=[rijlabel_kol])
-            .stack()                # alle cell-waarden onder elkaar
+        # Mapping van dropdownkeuze naar werkelijke worksheetnamen
+        sheet_mapping = {
+            "Niveau 1": "niveau1",
+            "Niveau 2": "niveau2",
+            "Niveau 3": "niveau3",
+            "A Diploma": "adiploma",
+            "B Diploma": "bdiploma",
+            "C Diploma": "cdiploma"
+        }
+
+        gekozen_sheet = sheet_mapping[sheet_keuze]
+        data = conn.read(worksheet=gekozen_sheet, ttl=5).dropna(how="all")
+
+        # ── Structuur uit de sheet halen ───────────────────────────────
+        rijlabel_kol = data.columns[0]             # eerste kolom bevat de namen
+        kinderen = data[rijlabel_kol].tolist()
+        kolom_opdrachten = data.columns[1:].tolist()
+
+        symbool_set = (
+            data.drop(columns=[rijlabel_kol])
+            .stack()
             .dropna()
             .unique()
             .tolist()
         )
-        # Sorteer in de volgorde die je gewend bent
-        symbool_volgorde = ['', '➖', '➕', '✳️']
-        kleuren_opties   = symbool_volgorde
 
-        # ── 3. UI bouwen ─────────────────────────────────────────────────────────────
-        with st.container():          # hele tabel in één container
-            # header
-            kol = st.columns(len(kolom_n1) + 1)
-            kol[0].markdown(" ")      # lege cel links-boven
-            for i, opdracht in enumerate(kolom_n1):
+        symbool_volgorde = ['', '➖', '➕', '✳️']
+        kleuren_opties = symbool_volgorde
+
+        # ── UI bouwen ───────────────────────────────────────────────────
+        with st.container():
+            kol = st.columns(len(kolom_opdrachten) + 1)
+            kol[0].markdown(" ")  # lege header
+            for i, opdracht in enumerate(kolom_opdrachten):
                 kol[i + 1].markdown(f"<div class='tabel-box header'>{opdracht}</div>",
                                     unsafe_allow_html=True)
 
-            # rijen
             for r, kind in enumerate(kinderen):
-                kol = st.columns([1.3] + [1]*len(kolom_n1))
+                kol = st.columns([1.3] + [1]*len(kolom_opdrachten))
                 kol[0].markdown(f"<div class='tabel-box rowlabel'>{kind}</div>",
                                 unsafe_allow_html=True)
 
-                for c, opdracht in enumerate(kolom_n1):
-                    default = data_n1.loc[r, opdracht]
+                for c, opdracht in enumerate(kolom_opdrachten):
+                    default = data.loc[r, opdracht]
                     try:
                         idx = kleuren_opties.index(default)
                     except ValueError:
-                        idx = 0                  
+                        idx = 0
 
                     with kol[c + 1]:
                         st.selectbox(
                             label="",
                             options=kleuren_opties,
                             index=idx,
-                            key=f"dropdown_{r}_{c}",
+                            key=f"{gekozen_sheet}_dropdown_{r}_{c}",  # uniek per sheet
                             label_visibility="collapsed"
                         )
+
+        st.markdown("---")
         if st.button("💾 Opslaan wijzigingen"):
-            nieuw_data = data_n1.copy()
+            nieuw_data = data.copy()
 
             for r, kind in enumerate(kinderen):
-                for c, opdracht in enumerate(kolom_n1):
-                    key = f"dropdown_{r}_{c}"
+                for c, opdracht in enumerate(kolom_opdrachten):
+                    key = f"{gekozen_sheet}_dropdown_{r}_{c}"
                     waarde = st.session_state.get(key, "")
                     nieuw_data.at[r, opdracht] = waarde
 
-            conn.update(worksheet="niveau1", data=nieuw_data)
-            st.success("Gegevens zijn opgeslagen!")
+            conn.update(worksheet=gekozen_sheet, data=nieuw_data)
+            st.success(f"Gegevens voor {sheet_keuze} zijn opgeslagen!")
+
 
         with tab2:
             vandaag = datetime.now().strftime("%d-%m-%Y")
