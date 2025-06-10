@@ -150,7 +150,40 @@ if st.session_state.ingelogd:
 
 
     with tab3:
-        st.write("")
+        st.title("Instellingen")
+
+        gekozen_sheet = st.selectbox("Kies een worksheet om naam toe te voegen:", options=list(sheet_mapping.keys()))
+        worksheet_naam = sheet_mapping[gekozen_sheet]
+
+        # Tekstvak voor naam invullen
+        naam_toevoegen = st.text_input("Voer een naam in om toe te voegen:")
+
+        if st.button("Voeg naam toe aan worksheet"):
+            if naam_toevoegen.strip() == "":
+                st.error("Voer een geldige naam in.")
+            else:
+                # Sheet data inlezen
+                data = conn.read(worksheet=worksheet_naam, ttl=0)
+
+                st.markdown("---")
+
+                # Als kolom 'Naam' niet bestaat, maak aan
+                if 'Naam' not in data.columns:
+                    data['Naam'] = ""
+
+                # Nieuwe rij toevoegen met alleen 'Naam' ingevuld (de rest leeg)
+                nieuwe_rij = {col: "" for col in data.columns}
+                nieuwe_rij['Naam'] = naam_toevoegen
+
+                data = pd.concat([data, pd.DataFrame([nieuwe_rij])], ignore_index=True)
+
+                # Terugschrijven naar Google Sheet
+                conn.update(worksheet=worksheet_naam, data=data)
+
+                st.success(f"Naam '{naam_toevoegen}' toegevoegd aan worksheet '{gekozen_sheet}'.")
+                
+
+
 
 # Loginformulier
 if not st.session_state.ingelogd:
