@@ -102,11 +102,6 @@ if st.session_state.ingelogd:
 
 
         with tab2:
-            sheet_keuze = st.selectbox(
-                "Selecteer een niveau of diploma",
-                options=["Niveau 1", "Niveau 2", "Niveau 3", "A Diploma", "B Diploma", "C Diploma"],
-                key="maand_slider"
-            )
             vandaag = datetime.now().strftime("%d-%m-%Y")
             st.markdown(f"###  **{vandaag}**")
             aanwezig_dict = {}
