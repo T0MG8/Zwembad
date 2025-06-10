@@ -8,8 +8,7 @@ gebruikers = {
     "Sara": "q"
 }
 
-# GSheets verbindingen
-
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Inlogstatus bijhouden
 if 'ingelogd' not in st.session_state:
@@ -20,15 +19,21 @@ if 'gebruiker' not in st.session_state:
 # Als ingelogd, toon tabs
 if st.session_state.ingelogd:
     tab1, tab2, tab3 = st.tabs(['Wat kunnen', 'Aanwezigheid', 'test'])
-
+    
     with tab1:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        data_n1 = conn.read(worksheet="niveau1", ttl=0)
-        data_n2 = conn.read(worksheet="niveau2", ttl=0)
-        data_n3 = conn.read(worksheet="niveau3", ttl=0)
-        data_ad = conn.read(worksheet="adiploma", ttl=0)
-        data_bd = conn.read(worksheet="bdiploma", ttl=0)
-        data_cd = conn.read(worksheet="cdiploma", ttl=0)
+        data_n1 = conn.read(worksheet="niveau1", ttl=5)
+        data_n1.dropna(how="all")
+        data_n2 = conn.read(worksheet="niveau2", ttl=5)
+        data_n2.dropna(how="all")
+        data_n3 = conn.read(worksheet="niveau3", ttl=5)
+        data_n3.dropna(how="all")
+        data_ad = conn.read(worksheet="adiploma", ttl=5)
+        data_ad.dropna(how="all")
+        data_bd = conn.read(worksheet="bdiploma", ttl=5)
+        data_bd.dropna(how="all")
+        data_cd = conn.read(worksheet="cdiploma", ttl=5)
+        data_cd.dropna(how="all")
+
         # ── 2. Structuur uit de sheet halen ──────────────────────────────────────────
         rijlabel_kol  = data_n1.columns[0]             # eerste kolom bevat de namen
         kinderen      = data_n1[rijlabel_kol].tolist() # ['Peter', 'Sjaqelien', …]
