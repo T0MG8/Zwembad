@@ -162,6 +162,42 @@ if st.session_state.ingelogd:
             st.success("Aanwezigheid opgeslagen of bijgewerkt!")
 
 
+        st.markdown("---")
+        st.subheader("📊 Aanwezigheidsoverzicht")
+
+        # ▸ Laad aanwezigheidssheet
+        df_overzicht = conn.read(worksheet="Aanwezigheid", ttl=0).copy()
+
+        # ▸ Filter op alleen huidige groep (niveau)
+        df_overzicht = df_overzicht[df_overzicht["Groep"] == sheet_keuze]
+
+        # ▸ Pivoteren naar tabel: rijen = namen, kolommen = datums
+        if not df_overzicht.empty:
+            aanwezigheid_tabel = df_overzicht.pivot_table(
+                index="Wie",
+                columns="Datum",
+                values="Aanwezig",
+                aggfunc="first",  # Neem gewoon het eerste voorkomen als er meerdere rijen zijn
+                fill_value=""
+            )
+
+            # Optioneel sorteren op naam of datum
+            aanwezigheid_tabel = aanwezigheid_tabel.sort_index()
+            aanwezigheid_tabel = aanwezigheid_tabel[sorted(aanwezigheid_tabel.columns, key=lambda d: datetime.strptime(d, "%d-%m-%Y"))]
+
+            # ✅❌ vervangen i.p.v. 'ja' / 'nee'
+            tabel_mooi = aanwezigheid_tabel.replace({
+                "ja": "✅",
+                "nee": "❌"
+            })
+
+            # Laat zien met styling
+            st.dataframe(tabel_mooi, use_container_width=True)
+        else:
+            st.info(f"Nog geen aanwezigheidsdata voor '{sheet_keuze}'.")
+
+
+
 
     if st.session_state.gebruiker in ["Tom", "Benthe"]:
         with selected_tabs[2]:
