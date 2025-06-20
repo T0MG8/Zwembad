@@ -26,8 +26,8 @@ if st.session_state.ingelogd:
         tabs.append('Instellingen')
     selected_tabs = st.tabs(tabs)
 
+
     with selected_tabs[0]:
-        # Dropdown om een niveau of diploma te kiezen
         sheet_keuze = st.selectbox(
             "Selecteer een niveau of diploma",
             options=["Niveau 1", "Niveau 2", "Niveau 3", "A Diploma", "B Diploma", "C Diploma"]
@@ -35,7 +35,6 @@ if st.session_state.ingelogd:
 
         st.markdown("---")
 
-        # Mapping van dropdownkeuze naar werkelijke worksheetnamen
         sheet_mapping = {
             "Niveau 1": "niveau1",
             "Niveau 2": "niveau2",
@@ -46,63 +45,77 @@ if st.session_state.ingelogd:
         }
 
         gekozen_sheet = sheet_mapping[sheet_keuze]
-        data = conn.read(worksheet=gekozen_sheet, ttl=5).dropna(how="all")
+        try:
+            data = conn.read(worksheet=gekozen_sheet, ttl=30).dropna(how="all")
+        except Exception as e:
+            st.error(f"❌ Fout bij het laden van gegevens uit het sheet: {str(e)}")
+            st.stop()
 
         rijlabel_kol = data.columns[0]
         kinderen = data[rijlabel_kol].tolist()
         kolom_opdrachten = data.columns[1:].tolist()
 
-        symbool_set = (
-            data.drop(columns=[rijlabel_kol])
-            .stack()
-            .dropna()
-            .unique()
-            .tolist()
-        )
-
         symbool_volgorde = ['', '➖', '➕', '✳️']
-        kleuren_opties = symbool_volgorde
 
-        with st.container():
-            kol = st.columns(len(kolom_opdrachten) + 1)
-            kol[0].markdown(" ")  # lege header
-            for i, opdracht in enumerate(kolom_opdrachten):
-                kol[i + 1].markdown(f"<div class='tabel-box header'>{opdracht}</div>",
-                                    unsafe_allow_html=True)
+        bewerkbare_data = data.copy()
+        bewerkbare_data.reset_index(drop=True, inplace=True)
 
-            for r, kind in enumerate(kinderen):
-                kol = st.columns([1.3] + [1]*len(kolom_opdrachten))
-                kol[0].markdown(f"<div class='tabel-box rowlabel'>{kind}</div>",
-                                unsafe_allow_html=True)
+        # Alleen als je een nieuwe versie van Streamlit gebruikt, kun je kolom_config gebruiken
+        # Anders laat je dit gewoon weg en werkt alles nog wel
+        try:
+            from streamlit.column_config import SelectboxColumn
 
-                for c, opdracht in enumerate(kolom_opdrachten):
-                    default = data.loc[r, opdracht]
-                    try:
-                        idx = kleuren_opties.index(default)
-                    except ValueError:
-                        idx = 0
+            kolom_config = {
+                kolom: SelectboxColumn(
+                    options=symbool_volgorde,
+                    required=False
+                ) for kolom in kolom_opdrachten
+            }
 
-                    with kol[c + 1]:
-                        st.selectbox(
-                            label="",
-                            options=kleuren_opties,
-                            index=idx,
-                            key=f"{gekozen_sheet}_dropdown_{r}_{c}",
-                            label_visibility="collapsed"
-                        )
+            # Injecteer CSS om kolomnamen te wrappen en volledige hoogte te tonen
+            st.markdown("""
+                <style>
+                /* Kolomhoofden laten teruglopen */
+                thead tr th div {
+                    white-space: normal !important;
+                    word-wrap: break-word !important;
+                    text-align: center !important;
+                }
+
+                /* Geen maximale hoogte zodat volledige lengte getoond wordt */
+                .stDataFrameContainer {
+                    max-height: none !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+
+
+            nieuwe_data = st.data_editor(
+                bewerkbare_data,
+                column_config=kolom_config,
+                use_container_width=True,
+                hide_index=True
+            )
+        except Exception:
+            # fallback: geen kolom_config beschikbaar
+            nieuwe_data = st.data_editor(
+                bewerkbare_data,
+                use_container_width=True,
+                hide_index=True
+            )
 
         st.markdown("---")
+
         if st.button("💾 Opslaan wijzigingen"):
-            nieuw_data = data.copy()
-
-            for r, kind in enumerate(kinderen):
-                for c, opdracht in enumerate(kolom_opdrachten):
-                    key = f"{gekozen_sheet}_dropdown_{r}_{c}"
-                    waarde = st.session_state.get(key, "")
-                    nieuw_data.at[r, opdracht] = waarde
-
-            conn.update(worksheet=gekozen_sheet, data=nieuw_data)
+            nieuwe_data[rijlabel_kol] = data[rijlabel_kol]
+            nieuwe_data = nieuwe_data[[rijlabel_kol] + kolom_opdrachten]
+            conn.update(worksheet=gekozen_sheet, data=nieuwe_data)
             st.success(f"Gegevens voor {sheet_keuze} zijn opgeslagen!")
+
+
+
 
     with selected_tabs[1]:
         vandaag = datetime.now().strftime("%d-%m-%Y")
@@ -177,7 +190,7 @@ if st.session_state.ingelogd:
                 index="Wie",
                 columns="Datum",
                 values="Aanwezig",
-                aggfunc="first",  # Neem gewoon het eerste voorkomen als er meerdere rijen zijn
+                aggfunc="first", 
                 fill_value=""
             )
 
@@ -195,8 +208,6 @@ if st.session_state.ingelogd:
             st.dataframe(tabel_mooi, use_container_width=True)
         else:
             st.info(f"Nog geen aanwezigheidsdata voor '{sheet_keuze}'.")
-
-
 
 
     if st.session_state.gebruiker in ["Tom", "Benthe"]:
