@@ -3,11 +3,6 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
-# Cachefunctie voor data ophalen met TTL
-@st.cache_data(ttl=60)
-def get_data(conn, worksheet):
-    return conn.read(worksheet=worksheet)
-
 # Gebruikers en wachtwoorden
 gebruikers = {
     "Benthe": "q",
@@ -16,6 +11,11 @@ gebruikers = {
 
 # Maak verbinding met Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Cache functie om data op te halen, zonder dat Streamlit de 'conn' hoeft te hashen
+@st.cache_data(ttl=30)
+def get_data(_conn, worksheet):
+    return _conn.read(worksheet=worksheet).dropna(how="all")
 
 # Inlogstatus bijhouden
 if 'ingelogd' not in st.session_state:
@@ -47,10 +47,8 @@ if st.session_state.ingelogd:
         }
 
         gekozen_sheet = sheet_mapping[sheet_keuze]
-
         try:
-            # Data 1x laden en cachen
-            data = get_data(conn, gekozen_sheet).dropna(how="all")
+            data = get_data(conn, gekozen_sheet)
         except Exception as e:
             st.error(f"❌ Fout bij het laden van gegevens uit het sheet: {str(e)}")
             st.stop()
@@ -114,9 +112,14 @@ if st.session_state.ingelogd:
         vandaag = datetime.now().strftime("%d-%m-%Y")
         st.markdown(f"###  **{vandaag}**")
 
-        # Data aanwezigheid 1x laden en cachen
-        df_sheet = get_data(conn, "Aanwezigheid").copy()
+        # Lees aanwezigheidsdata opnieuw direct (ttl=0 kan hier omdat we willen meest recente data)
+        try:
+            df_sheet = conn.read(worksheet="Aanwezigheid", ttl=0).copy()
+        except Exception as e:
+            st.error(f"❌ Fout bij het laden van aanwezigheidsgegevens: {str(e)}")
+            st.stop()
 
+        # Kolomnamen
         COL_WIE     = "Wie"
         COL_GROEP   = "Groep"
         COL_DATUM   = "Datum"
@@ -124,29 +127,12 @@ if st.session_state.ingelogd:
 
         aanwezig_dict = {}
 
-        # Hergebruik kinderen lijst uit tab 0 als die beschikbaar is,
-        # anders even sheet inladen en cachen.
-        if 'kinderen' not in st.session_state or not kinderen:
-            # fallback, veilig cachen
-            kinderen = []
-            for key in ["niveau1", "niveau2", "niveau3", "adiploma", "bdiploma", "cdiploma"]:
-                try:
-                    sheet_data = get_data(conn, key)
-                    if not sheet_data.empty:
-                        kol = sheet_data.columns[0]
-                        kinderen.extend(sheet_data[kol].dropna().tolist())
-                except:
-                    pass
-            kinderen = list(set(kinderen))  # uniek maken
-            st.session_state.kinderen = kinderen
-        else:
-            kinderen = st.session_state.kinderen
-
         for naam in kinderen:
             rij = df_sheet[
                 (df_sheet[COL_WIE] == naam) &
                 (df_sheet[COL_DATUM] == vandaag)
             ]
+
             status = rij[COL_STATUS].values[0] if not rij.empty else "nee"
 
             col1, col2 = st.columns([3, 1])
@@ -182,7 +168,8 @@ if st.session_state.ingelogd:
         st.markdown("---")
         st.subheader("📊 Aanwezigheidsoverzicht")
 
-        df_overzicht = get_data(conn, "Aanwezigheid").copy()
+        df_overzicht = conn.read(worksheet="Aanwezigheid", ttl=0).copy()
+
         df_overzicht = df_overzicht[df_overzicht["Groep"] == sheet_keuze]
 
         if not df_overzicht.empty:
@@ -193,7 +180,6 @@ if st.session_state.ingelogd:
                 aggfunc="first", 
                 fill_value=""
             )
-
             aanwezigheid_tabel = aanwezigheid_tabel.sort_index()
             aanwezigheid_tabel = aanwezigheid_tabel[sorted(aanwezigheid_tabel.columns, key=lambda d: datetime.strptime(d, "%d-%m-%Y"))]
 
@@ -231,6 +217,7 @@ if st.session_state.ingelogd:
 
                     data = pd.concat([data, pd.DataFrame([nieuwe_rij])], ignore_index=True)
                     conn.update(worksheet=worksheet_naam, data=data)
+
                     st.success(f"Naam '{naam_toevoegen}' toegevoegd aan worksheet '{gekozen_sheet}'.")
 
             st.markdown("---")
@@ -304,7 +291,6 @@ if st.session_state.ingelogd:
                     conn.update(worksheet=verwijder_sheet, data=data_verwijder)
                     st.success(f"Naam '{naam_verwijderen}' is verwijderd uit niveau '{verwijder_niveau}'.")
 
-
 # Loginformulier
 if not st.session_state.ingelogd:
     st.title("Inloggen vereist")
@@ -316,5 +302,6 @@ if not st.session_state.ingelogd:
             if gebruikersnaam in gebruikers and wachtwoord == gebruikers[gebruikersnaam]:
                 st.session_state.ingelogd = True
                 st.session_state.gebruiker = gebruikersnaam
+                st.experimental_rerun()
             else:
                 st.error("Gebruikersnaam of wachtwoord is fout")
