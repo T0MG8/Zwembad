@@ -6,8 +6,7 @@ from datetime import datetime
 # Gebruikers en wachtwoorden
 gebruikers = {
     "Benthe": "q",
-    "Sara": "q",
-    "Tom": "q"
+    "Zwemles": "Breek"
 }
 
 # Maak verbinding met Google Sheets
@@ -22,7 +21,7 @@ if 'gebruiker' not in st.session_state:
 # Als ingelogd, toon tabs
 if st.session_state.ingelogd:
     tabs = ['Wat kunnen', 'Aanwezigheid']
-    if st.session_state.gebruiker in ["Tom", "Benthe"]:
+    if st.session_state.gebruiker in ["Benthe"]:
         tabs.append('Instellingen')
     selected_tabs = st.tabs(tabs)
 
@@ -210,7 +209,7 @@ if st.session_state.ingelogd:
             st.info(f"Nog geen aanwezigheidsdata voor '{sheet_keuze}'.")
 
 
-    if st.session_state.gebruiker in ["Tom", "Benthe"]:
+    if st.session_state.gebruiker in ["Benthe"]:
         with selected_tabs[2]:
             st.title("Instellingen")
             st.markdown("---")
