@@ -109,15 +109,12 @@ if st.session_state.ingelogd:
 
         if st.button("💾 Opslaan wijzigingen"):
             try:
-                # Zorg ervoor dat kolomnamen correct blijven
+                # Zet kolomnamen expliciet gelijk aan originele
                 nieuwe_data.columns = data.columns
-
-                # Sla alles op in dezelfde kolomvolgorde als origineel
                 conn.update(worksheet=gekozen_sheet, data=nieuwe_data)
                 st.success(f"Gegevens voor {sheet_keuze} zijn opgeslagen!")
             except Exception as e:
-                st.error(f"❌ Fout bij het opslaan: {str(e)}")
-
+                st.error(f"❌ Fout bij opslaan: {str(e)}")
 
     with selected_tabs[1]:
         vandaag = datetime.now().strftime("%d-%m-%Y")
