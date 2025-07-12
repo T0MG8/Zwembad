@@ -20,7 +20,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 # Cache functie om data op te halen, zonder dat Streamlit de 'conn' hoeft te hashen
 @st.cache_data(ttl=30)
 def get_data(_conn, worksheet):
-    return _conn.read(worksheet=worksheet).dropna(how="all")
+    return _conn.fillna("")
 
 # Inlogstatus bijhouden
 if 'ingelogd' not in st.session_state:
